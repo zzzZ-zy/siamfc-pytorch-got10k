@@ -10,7 +10,7 @@ import torch
 from . import utils
 
 
-__all__ = ['GOT10kDataset','SiamFCTransforms']
+__all__ = ['GOT10kDataset', 'SiamFCTransforms']
 
 
 # 就是把一系列的transforms串起来
@@ -93,8 +93,8 @@ class RandomCrop(object):
 # 就是字面意思，把np.ndarray转化成torch tensor类型
 class ToTensor(object):
     def __call__(self, img):
-        return torch.from_numpy(img).float().permute((2, 0,
-                                                      1))  # permute是维度变换，比如[1 24 24]--->[24 1 24]按照(2,0,1)变换,[height,weight,channel]变为[channel height weight]
+        return torch.from_numpy(img).float().permute((2, 0, 1))  # permute是维度变换，
+        # 比如[1 24 24]--->[24 1 24]按照(2,0,1)变换,[height,weight,channel]变为[channel height weight]
 
 
 class SiamFCTransforms(object):
@@ -116,7 +116,8 @@ class SiamFCTransforms(object):
             ToTensor()])  # 图片数据格式转化为torch张量
 
     def __call__(self, z, x, box_z, box_x):  # z，x表示传进来的图像
-        z = self._crop(z, box_z,self.instance_sz)  # 对z(x类似)图像 1、box转换(l,t,w,h)->(y,x,h,w)，并且数据格式转为float32,得到center[y,x],和target_sz[h,w]
+        z = self._crop(z, box_z,self.instance_sz)  # 对z(x类似)图像
+        # 1、box转换(l,t,w,h)->(y,x,h,w)，并且数据格式转为float32,得到center[y,x],和target_sz[h,w]
         x = self._crop(x, box_x, self.instance_sz)  # 2、得到size=((h+(h+w)/2)*(w+(h+2)/2))^0.5*255(instance_sz)/127
         z = self.transforms_z(z)  # 3、进入crop_and_resize:传入z作为图片img，center，size，outsize=255(instance_sz),随机选方式填充，均值填充
         x = self.transforms_x(x)  # 以center为中心裁剪一块边长为size大小的正方形框(注意裁剪时的padd边框填充问题)，再resize成out_size=255(instance_sz)
@@ -149,27 +150,23 @@ class SiamFCTransforms(object):
         return patch
 
 
-
-
-
-
-class GOT10kDataset(Dataset): #继承了torch.utils.data的Dataset类
-    def __init__(self, seqs, transforms=None,
-                 pairs_per_seq=1):
+class GOT10kDataset(Dataset):  # 继承了torch.utils.data的Dataset类
+    def __init__(self, seqs, transforms=None, pairs_per_seq=1):
         super(GOT10kDataset, self).__init__()
         self.seqs = seqs
         self.transforms = transforms
         self.pairs_per_seq = pairs_per_seq
         self.indices = np.random.permutation(len(seqs))  #len(seqs)=9335，随机打乱0-9335 如果没有permutation 那么indices=array([0 1 2 3... 9335])
         self.return_meta = getattr(seqs, 'return_meta')  #判断return_meta是否在segs中，如果不在，返回False，在的话返回1
-#通过index索引返回item=（z,x,box_z,box_x）,然后经过transforms返回一对pair(z,x)
-    def __getitem__(self, index):               #__getitem__的作用就是根据索引index遍历数据，并且可以在该函数下面对数据进行处理
+
+    # 通过index索引返回item=（z,x,box_z,box_x）,然后经过transforms返回一对pair(z,x)
+    def __getitem__(self, index):  # _getitem__的作用就是根据索引index遍历数据，并且可以在该函数下面对数据进行处理
         # print(self.indices)
         index = self.indices[index % len(self.indices)]
         # print(index)
         # index = self.indices[index] 与上相同
         # get filename lists and annotations
-        if self.return_meta:  #如果为True的话
+        if self.return_meta:  # 如果为True的话
             img_files, anno, meta = self.seqs[index]
             vis_ratios = meta.get('cover', None)
         else:
@@ -200,11 +197,12 @@ class GOT10kDataset(Dataset): #继承了torch.utils.data的Dataset类
             item = self.transforms(*item)
         
         return item
-#这里定义的长度就是被索引到的视频序列数x每个序列提供的对数（1对）
-    def __len__(self):    #__len__的作用就是返回数据集的长度
-        return len(self.indices) * self.pairs_per_seq   #len(self.indices)=9335  返回9335*1对
-#随机挑选两个索引，这里取的间隔不超过T=100
-    def _sample_pair(self, indices):
+
+    # 这里定义的长度就是被索引到的视频序列数x每个序列提供的对数（1对）
+    def __len__(self):  # __len__的作用就是返回数据集的长度
+        return len(self.indices) * self.pairs_per_seq  # len(self.indices)=9335  返回9335*1对
+
+    def _sample_pair(self, indices):  # 随机挑选两个索引，这里取的间隔不超过T=100
         n = len(indices)
         assert n > 0
         if n == 1:
@@ -214,7 +212,7 @@ class GOT10kDataset(Dataset): #继承了torch.utils.data的Dataset类
         else:
             for i in range(100):
                 rand_z, rand_x = np.sort(
-                    np.random.choice(indices, 2, replace=False))  #False代表抽出的不放回去
+                    np.random.choice(indices, 2, replace=False))  # False代表抽出的不放回去
                 if rand_x - rand_z < 100:
                     break
             else:
@@ -222,7 +220,8 @@ class GOT10kDataset(Dataset): #继承了torch.utils.data的Dataset类
                 rand_x = rand_z
 
             return rand_z, rand_x
-# 通过该函数筛选符合条件的有效索引val_indices
+
+    # 通过该函数筛选符合条件的有效索引val_indices
     def _filter(self, img0, anno, vis_ratios=None):
         size = np.array(img0.shape[1::-1])[np.newaxis, :]
         areas = anno[:, 2] * anno[:, 3]
@@ -245,6 +244,7 @@ class GOT10kDataset(Dataset): #继承了torch.utils.data的Dataset类
         val_indices = np.where(mask)[0]
 
         return val_indices
+
 
 if __name__ == "__main__":
     root_dir = 'D:/Dataset/GOT-10k'
